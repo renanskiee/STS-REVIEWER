@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>STS Comprehensive Reviewer — Interactive Flip Cards</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-front: #1e293b;
+      --card-back: #172554;
+      --accent: #38bdf8;
+      --accent-hover: #0284c7;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --border: #334155;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 16px 40px;
+    }
+    header {
+      text-align: center;
+      max-width: 760px;
+      width: 100%;
+      margin-bottom: 18px;
+    }
+    h1 { font-size: 1.55rem; color: var(--accent); margin-bottom: 6px; }
+    .subtitle { color: var(--muted); font-size: 0.92rem; }
+    .controls-top {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      align-items: center;
+      max-width: 760px;
+      width: 100%;
+      margin-bottom: 14px;
+    }
+    select, button {
+      background: var(--card-front);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 9px 14px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    button:hover, select:hover { border-color: var(--accent); }
+    button.primary { background: var(--accent); color: #0f172a; font-weight: 600; border: none; }
+    button.primary:hover { background: var(--accent-hover); color: #fff; }
+    button.mastered-btn.active { background: var(--success); color: #052e16; font-weight: 600; border-color: var(--success); }
+    .progress-wrap {
+      max-width: 760px;
+      width: 100%;
+      margin-bottom: 16px;
+    }
+    .stats {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: var(--card-front);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.25s ease;
+    }
+    .scene {
+      width: 100%;
+      max-width: 760px;
+      min-height: 390px;
+      perspective: 1200px;
+      margin-bottom: 18px;
+    }
+    .card {
+      width: 100%;
+      min-height: 390px;
+      position: relative;
+      transition: transform 0.55s cubic-bezier(0.4, 0.2, 0.2, 1);
+      transform-style: preserve-3d;
+      cursor: pointer;
+    }
+    .card.is-flipped { transform: rotateY(180deg); }
+    .card-face {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      border-radius: 16px;
+      padding: 26px 24px;
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+    }
+    .card-front { background: var(--card-front); }
+    .card-back {
+      background: var(--card-back);
+      border-color: var(--accent);
+      transform: rotateY(180deg);
+    }
+    .badge-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .badge {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .tap-note { font-size: 0.78rem; color: var(--muted); }
+    .question-text {
+      font-size: 1.08rem;
+      line-height: 1.5;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    .choices { list-style: none; display: flex; flex-direction: column; gap: 9px; }
+    .choices li {
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      line-height: 1.4;
+    }
+    .hint-box {
+      margin-top: 14px;
+      padding: 10px 12px;
+      background: rgba(245, 158, 11, 0.12);
+      border-left: 3px solid var(--warning);
+      border-radius: 6px;
+      font-size: 0.86rem;
+      color: #fde68a;
+      display: none;
+    }
+    .hint-box.visible { display: block; }
+    .answer-header {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--success);
+      margin-bottom: 12px;
+    }
+    .rationale {
+      font-size: 1.02rem;
+      line-height: 1.6;
+      color: #e2e8f0;
+    }
+    .nav-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      max-width: 760px;
+      width: 100%;
+    }
+    @media (max-width: 520px) {
+      .card-face { padding: 20px 16px; }
+      .question-text { font-size: 1rem; }
+      .scene, .card { min-height: 430px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>STS Comprehensive MCQ Flip Cards</h1>
+    <p class="subtitle">Biodiversity &bull; Pandemics &bull; Biotechnology &bull; HIV/AIDS &amp; ART NCLEX &bull; Climate Change 2022</p>
+  </header>
+
+  <div class="controls-top">
+    <select id="topicFilter" aria-label="Filter by topic">
+      <option value="ALL">All Topics (60 Items)</option>
+      <option value="Biodiversity & Evolution">Biodiversity, Taxonomy & Evolution</option>
+      <option value="Pandemics & Health">Biodiversity & Pandemics</option>
+      <option value="Biotechnology & GMOs">Biotechnology & GMOs</option>
+      <option value="HIV/AIDS & ART NCLEX">HIV/AIDS & ART NCLEX</option>
+      <option value="Climate Change & Food">Climate Change 2022 & Food Systems</option>
+    </select>
+    <button id="shuffleBtn">Shuffle Deck</button>
+    <button id="hintBtn">Show Hint</button>
+    <button id="masteredBtn" class="mastered-btn">Mark Mastered</button>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="stats">
+      <span id="counterText">Card 1 of 60</span>
+      <span id="masteredText">Mastered: 0</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <div class="scene">
+    <div class="card" id="flashcard">
+      <div class="card-face card-front">
+        <div>
+          <div class="badge-row">
+            <span class="badge" id="cardTopic">Topic</span>
+            <span class="tap-note">Tap card to flip &#8635;</span>
+          </div>
+          <div class="question-text" id="questionText"></div>
+          <ul class="choices" id="choicesList"></ul>
+          <div class="hint-box" id="hintBox"></div>
+        </div>
+        <div class="tap-note" style="text-align:right; margin-top:10px;">Front &bull; Question</div>
+      </div>
+
+      <div class="card-face card-back">
+        <div>
+          <div class="badge-row">
+            <span class="badge" id="cardTopicBack">Answer &amp; Rationale</span>
+            <span class="tap-note">Tap card to flip back &#8635;</span>
+          </div>
+          <div class="answer-header" id="answerHeader"></div>
+          <p class="rationale" id="rationaleText"></p>
+        </div>
+        <div class="tap-note" style="text-align:right;">Back &bull; Answer</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-row">
+    <button id="prevBtn">&larr; Previous</button>
+    <button id="flipBtn" class="primary">Flip Card</button>
+    <button id="nextBtn">Next &rarr;</button>
+  </div>
+
+  <script>
+    const deckData = [
+      // BIODIVERSITY, TAXONOMY & EVOLUTION
+      {
+        topic: "Biodiversity & Evolution",
+        q: "1. Which component of biodiversity refers to biological and chemical processes—such as energy flow and matter recycling—needed for species and ecosystem survival?",
+        choices: ["A. Genetic diversity", "B. Species diversity", "C. Ecological diversity", "D. Functional diversity"],
+        ans: "Correct Answer: D. Functional diversity",
+        rat: "Functional diversity covers energy flow and nutrient/matter recycling across ecosystems, whereas genetic, species, and ecological diversity describe genes, organisms, and habitats.",
+        hint: "Focus on how an ecosystem operates and recycles energy/matter rather than counting species."
+      },
+      {
+        topic: "Biodiversity & Evolution",
+        q: "2. What percentages of Earth's marine and land-based environments have been significantly altered by human activity?",
+        choices: ["A. 50% of oceans and 60% of land", "B. 66% of oceans and 75% of land", "C. 71% of oceans and 96.5% of land", "D. 80% of oceans and 50% of land"],
+        ans: "Correct Answer: B. 66% of oceans and 75% of land",
+        rat: "Roughly 66% (two-thirds) of the ocean environment and 75% (three-quarters) of the land-based environment have been significantly altered by humans. (Water covers 71% of Earth, and oceans hold 96.5% of Earth's water.)",
+        hint: "Two-thirds of the sea and three-quarters of land."
+      },
+      {
+        topic: "Biodiversity & Evolution",
+        q: "3. Where are more than 50% of Earth's identified and estimated species concentrated?",
+        choices: ["A. Arctic tundra and boreal forests", "B. Temperate grasslands", "C. Endangered tropical rainforests", "D. Deep abyssal ocean trenches"],
+        ans: "Correct Answer: C. Endangered tropical rainforests",
+        rat: "Out of 8–100 million total estimated species (~12 million identified), over 50% live in endangered tropical rainforests.",
+        hint: "Warm, wet equatorial forests hold the richest terrestrial species diversity."
+      },
+      {
+        topic: "Biodiversity & Evolution",
+        q: "4. Which sequence correctly orders Carolus Linnaeus's taxonomic ranks from broadest to most specific?",
+        choices: [
+          "A. Domain → Kingdom → Phylum → Class → Order → Family → Genus → Species",
+          "B. Kingdom → Domain → Class → Phylum → Order → Family → Species → Genus",
+          "C. Domain → Phylum → Kingdom → Order → Class → Family → Genus → Species",
+          "D. Domain → Kingdom → Class → Phylum → Family → Order → Genus → Species"
+        ],
+        ans: "Correct Answer: A. Domain → Kingdom → Phylum → Class → Order → Family → Genus → Species",
+        rat: "Linnaean taxonomy progresses from broadest (Domain) down to most specific (Species).",
+        hint: "Mnemonic: 'Dream Ko Pumasa Coz Our Family Get Sweldo.'"
+      },
+      {
+        topic: "Biodiversity & Evolution",
+        q: "5. In binomial nomenclature (e.g., Homo sapiens), which two taxonomic ranks make up an organism's scientific name?",
+        choices: ["A. Kingdom and Phylum", "B. Family and Genus", "C. Genus and Species", "D. Order and Class"],
+        ans: "Correct Answer: C. Genus and Species",
+        rat: "Carolus Linnaeus's binomial nomenclature uses two Latin names: the capitalized Genus followed by the lowercase species epithet.",
+        hint: "Look at the last two ranks at the bottom of the taxonomic hierarchy."
+      },
+      {
+        topic: "Biodiversity & Evolution",
+        q: "6. In the 7-kingdom classification system (Mora et al., 2011), which three kingdoms contain the largest numbers of species?",
+        choices: ["A. Animalia, Plantae, and Bacteria", "B. Animalia, Fungi, and Plantae", "C. Fungi, Protozoa, and Chromista", "D. Animalia, Chromista, and Archaea"],
+        ans: "Correct Answer: B. Animalia, Fungi, and Plantae",
+        rat: "Animalia (7,770,000), Fungi (611,000), and Plantae (298,000) make up the bulk of the ~8.75 million total cataloged/estimated species.",
+        hint: "Animals are #1 (~7.77M), followed by fungi and plants."
+      },
+      {
+        topic: "Biodiversity & Evolution",
+        q: "7. Which of the following is NOT one of the 7 Kingdoms in Mora et al.'s classification?",
+        choices: ["A. Chromista", "B. Archaea", "C. Protozoa", "D. Protista"],
+        ans: "Correct Answer: D. Protista",
+        rat: "The 7 kingdoms listed are Bacteria, Archaea, Protozoa, Chromista, Plantae, Fungi, and Animalia.",
+        hint: "Protists are split into Protozoa and Chromista in the 7-kingdom model."
+      },
+      {
+        topic: "Biodiversity & Evolution",
+        q: "8. Which biological property defines an 'organism'?",
+        choices: [
+          "A. An abiotic chemical compound that cycles through soil",
+          "B. A living thing with organized structure that reacts to stimuli, reproduces, grows, adapts, and maintains homeostasis",
+          "C. Any virus capable of mutating inside a host cell",
+          "D. A synthetic enzyme created in vitro"
+        ],
+        ans: "Correct Answer: B. A living thing with organized structure that reacts to stimuli, reproduces, grows, adapts, and maintains homeostasis",
+        rat: "Organisms exhibit cellular/organized structure, stimulus response, growth, reproduction, adaptation, and internal homeostasis.",
+        hint: "Includes maintaining internal balance (homeostasis)."
+      },
+      {
+        topic: "Biodiversity & Evolution",
+        q: "9. When a population of bacteria is exposed to an antibiotic and resistant strains eventually replace normal bacteria, what process is demonstrated?",
+        choices: ["A. Natural selection via differential reproduction", "B. Genetic pollution", "C. Bioremediation", "D. Artificial cloning"],
+        ans: "Correct Answer: A. Natural selection via differential reproduction",
+        rat: "Random DNA mutations confer heritable adaptive resistance traits, allowing resistant bacteria to survive antibiotic exposure and out-reproduce susceptible strains.",
+        hint: "Favorable heritable traits increase survival and reproduction under environmental pressure."
+      },
+      {
+        topic: "Biodiversity & Evolution",
+        q: "10. What is the ultimate source of new genetic variability that enables populations to evolve over time?",
+        choices: ["A. Homeostasis", "B. Random DNA mutations (spontaneous or induced by external agents like radiation)", "C. Binomial nomenclature", "D. Food waste"],
+        ans: "Correct Answer: B. Random DNA mutations (spontaneous or induced by external agents like radiation)",
+        rat: "Mutations create new alleles in genes; if heritable and advantageous, natural selection spreads them through the population.",
+        hint: "Changes in DNA molecules inside genes."
+      },
+
+      // BIODIVERSITY & PANDEMICS
+      {
+        topic: "Pandemics & Health",
+        q: "11. Which of the following is one of the 5 key ways biodiversity supports human health?",
+        choices: [
+          "A. Increasing greenhouse gas concentrations",
+          "B. Serving as a rich source of materials for traditional and modern medical research",
+          "C. Promoting monoculture factory farming",
+          "D. Eliminating all wild animal habitats"
+        ],
+        ans: "Correct Answer: B. Serving as a rich source of materials for traditional and modern medical research",
+        rat: "Biodiversity secures food/livelihoods, supplies medical research materials, regulates infectious diseases, improves health via greenspaces, and buffers natural disasters.",
+        hint: "Many pharmaceuticals originate from wild plants, fungi, and microbes."
+      },
+      {
+        topic: "Pandemics & Health",
+        q: "12. How does access to natural greenspaces affect human health outcomes?",
+        choices: [
+          "A. It has no measurable impact on health",
+          "B. Greenspaces are linked to better physical and mental health outcomes",
+          "C. Greenspaces increase zoonotic viral spillover",
+          "D. Greenspaces reduce oxygen availability"
+        ],
+        ans: "Correct Answer: B. Greenspaces are linked to better physical and mental health outcomes",
+        rat: "Exposure to biodiverse greenspaces reduces stress, supports physical activity, and improves overall health outcomes.",
+        hint: "One of the 5 direct links between biodiversity and human health."
+      },
+      {
+        topic: "Pandemics & Health",
+        q: "13. Which human activities drive zoonotic spillover and pandemics like COVID-19?",
+        choices: [
+          "A. Reforestation and wildlife protection",
+          "B. Deforestation, land-use change, urbanization, wild-animal trade, and intensified animal agriculture",
+          "C. Reducing global meat consumption",
+          "D. Expanding marine protected areas"
+        ],
+        ans: "Correct Answer: B. Deforestation, land-use change, urbanization, wild-animal trade, and intensified animal agriculture",
+        rat: "Destroying habitats and intensifying livestock farming force wild reservoir species (bats, pangolins, civets, birds) into close contact with livestock and humans.",
+        hint: "Activities that strip away natural habitat buffers between wildlife and humans."
+      },
+      {
+        topic: "Pandemics & Health",
+        q: "14. Why does intensified animal agriculture create ideal conditions for viral pandemics?",
+        choices: [
+          "A. Livestock have zero genetic similarity to humans",
+          "B. High-density livestock populations act as amplifier hosts where viruses mutate, spread, and spill over to humans",
+          "C. Factory farms eliminate all insect vectors",
+          "D. Animal agriculture restores tropical rainforests"
+        ],
+        ans: "Correct Answer: B. High-density livestock populations act as amplifier hosts where viruses mutate, spread, and spill over to humans",
+        rat: "Crowded, genetically uniform livestock populations facilitate rapid viral replication, cross-species transmission from wildlife, and spillover to farm workers.",
+        hint: "Crowded farm animals bridge pathogens between wild animals and humans."
+      },
+
+      // BIOTECHNOLOGY & GMOs
+      {
+        topic: "Biotechnology & GMOs",
+        q: "15. Who coined the term 'biotechnology' in 1919?",
+        choices: ["A. Alexander Fleming", "B. Karl Ereky", "C. Oswald Theodore Avery", "D. James Watson"],
+        ans: "Correct Answer: B. Karl Ereky",
+        rat: "Hungarian agronomist Karl Ereky coined 'biotechnology' in 1919 to describe using biological systems to produce useful products.",
+        hint: "A Hungarian agronomist working right after World War I."
+      },
+      {
+        topic: "Biotechnology & GMOs",
+        q: "16. Which milestone in biotechnology occurred in 1928?",
+        choices: [
+          "A. Discovery of the DNA double helix",
+          "B. Discovery of the antibiotic use of penicillin by Alexander Fleming",
+          "C. Cloning of Dolly the sheep",
+          "D. Creation of the first synthetic cell"
+        ],
+        ans: "Correct Answer: B. Discovery of the antibiotic use of penicillin by Alexander Fleming",
+        rat: "Scottish bacteriologist Alexander Fleming discovered penicillin in 1928.",
+        hint: "A mold-derived antibiotic discovered by a Scottish bacteriologist."
+      },
+      {
+        topic: "Biotechnology & GMOs",
+        q: "17. What did Canadian scientist Oswald Theodore Avery discover in 1943?",
+        choices: [
+          "A. That DNA is the carrier of genes",
+          "B. The first transgenic plant",
+          "C. The bionic eye",
+          "D. In vitro enzyme synthesis"
+        ],
+        ans: "Correct Answer: A. That DNA is the carrier of genes",
+        rat: "In 1943, Oswald Avery demonstrated that DNA (not protein) carries hereditary genetic information, paving the way for Watson and Crick in 1953.",
+        hint: "Happened 10 years before the double helix structure was described."
+      },
+      {
+        topic: "Biotechnology & GMOs",
+        q: "18. Which pair of scientists described the double-helix structure of DNA in 1953?",
+        choices: ["A. Karl Ereky and Alexander Fleming", "B. James Watson and Francis Crick", "C. J. Craig Venter and Oswald Avery", "D. Daishiro Koshi and Yoichi Honda"],
+        ans: "Correct Answer: B. James Watson and Francis Crick",
+        rat: "Biologists James Watson and Francis Crick described the double-helix structure of DNA in 1953.",
+        hint: "Famous 1953 DNA structure duo."
+      },
+      {
+        topic: "Biotechnology & GMOs",
+        q: "19. When was the first genetically modified (transgenic) plant presented?",
+        choices: ["A. 1953", "B. 1969", "C. 1983", "D. 2010"],
+        ans: "Correct Answer: C. 1983",
+        rat: "The first transgenic plant was presented in 1983, following in vitro enzyme synthesis in 1969.",
+        hint: "Thirteen years before Dolly the sheep was cloned."
+      },
+      {
+        topic: "Biotechnology & GMOs",
+        q: "20. In 1996, how did scientists immediately recognize that Dolly the sheep was a true clone rather than the biological offspring of her surrogate mother?",
+        choices: [
+          "A. Dolly had a white face (like the Finn Dorset mammary cell donor) instead of her Scottish Blackface surrogate's black face",
+          "B. Dolly had four horns",
+          "C. Dolly glowed under UV light",
+          "D. Dolly was born with adult teeth"
+        ],
+        ans: "Correct Answer: A. Dolly had a white face (like the Finn Dorset mammary cell donor) instead of her Scottish Blackface surrogate's black face",
+        rat: "Dolly was cloned from a Finn Dorset mammary cell fused with a Scottish Blackface egg; her white face proved her DNA came from the Finn Dorset donor.",
+        hint: "Compare the face color of the donor breed vs. the surrogate breed."
+      },
+      {
+        topic: "Biotechnology & GMOs",
+        q: "21. Which major biotechnology milestones occurred in 1998, 2010, and 2013 respectively?",
+        choices: [
+          "A. Penicillin (1998), Dolly (2010), DNA double helix (2013)",
+          "B. Draft human genome map (1998), first synthetic cell (2010), first US bionic eye (2013)",
+          "C. First transgenic plant (1998), SARS-CoV-2 vaccines (2010), CRISPR (2013)",
+          "D. Golden Rice (1998), Bt corn (2010), penicillin (2013)"
+        ],
+        ans: "Correct Answer: B. Draft human genome map (1998), first synthetic cell (2010), first US bionic eye (2013)",
+        rat: "1998 mapped >30,000 human genes; 2010 saw the J. Craig Venter Institute create the first synthetic cell; 2013 introduced the first bionic eye.",
+        hint: "Human genome → synthetic cell → bionic eye."
+      },
+      {
+        topic: "Biotechnology & GMOs",
+        q: "22. How does CRISPR/Cas9 genome editing work?",
+        choices: [
+          "A. Guide RNA (gRNA) recruits Cas9 protein to a target DNA sequence next to a PAM sequence, where Cas9 makes a double-strand break",
+          "B. Cas9 converts RNA into protein without needing a target sequence",
+          "C. gRNA destroys all chromosomes in the nucleus",
+          "D. Cas9 injects Bacillus thuringiensis toxins into human cells"
+        ],
+        ans: "Correct Answer: A. Guide RNA (gRNA) recruits Cas9 protein to a target DNA sequence next to a PAM sequence, where Cas9 makes a double-strand break",
+        rat: "gRNA guides the Cas9 endonuclease to the complementary target gene adjacent to a PAM sequence, creating a double-strand break that allows targeted gene mutation.",
+        hint: "gRNA = GPS guide; Cas9 = molecular scissors making a double-strand cut."
+      },
+      {
+        topic: "Biotechnology & GMOs",
+        q: "23. Why were GMO crops like Bt eggplant, Bt corn, and Golden Rice promoted in the Philippines?",
+        choices: [
+          "A. To increase pesticide sales",
+          "B. To combat malnutrition, Vitamin A deficiency, food insecurity (12.9% lacking food), and high poverty (25.8%)",
+          "C. To replace all native forest trees",
+          "D. To eliminate the need for sunlight in farming"
+        ],
+        ans: "Correct Answer: B. To combat malnutrition, Vitamin A deficiency, food insecurity (12.9% lacking food), and high poverty (25.8%)",
+        rat: "Bt crops resist destructive pests without heavy chemical sprays, while Golden Rice provides beta-carotene to address nutrient deficiency.",
+        hint: "Addresses both agricultural pest loss and micronutrient malnutrition."
+      },
+      {
+        topic: "Biotechnology & GMOs",
+        q: "24. Which bacterium provides the pest-resistant gene inserted into Bt eggplant and Bt corn?",
+        choices: ["A. Pseudomonas putida", "B. Bacillus thuringiensis", "C. Deinococcus radiodurans", "D. Alcanivorax borkumensis"],
+        ans: "Correct Answer: B. Bacillus thuringiensis",
+        rat: "Bacillus thuringiensis (Bt) produces natural proteins toxic to specific insect pests (like fruit and shoot borers) while remaining safe for humans.",
+        hint: "Look at the initials 'Bt' in Bt corn and Bt eggplant."
+      },
+      {
+        topic: "Biotechnology & GMOs",
+        q: "25. Which application of biotechnology uses microbes such as Pseudomonas putida and Alcanivorax borkumensis to clean up environmental pollutants and oil spills?",
+        choices: ["A. Genetic pollution", "B. Bioremediation", "C. Gene splicing", "D. Lipodystrophy"],
+        ans: "Correct Answer: B. Bioremediation",
+        rat: "Bioremediation uses microorganisms (like P. putida, D. aromatica, D. radiodurans, M. petroleiphilum, A. borkumensis, and P. chrysosporium) to degrade environmental toxins.",
+        hint: "'Bio' (life) + 'remediation' (remedying/cleaning pollution)."
+      },
+      {
+        topic: "Biotechnology & GMOs",
+        q: "26. What is 'genetic pollution' in the context of genetically modified crops?",
+        choices: [
+          "A. Using plastic packaging for GM vegetables",
+          "B. Uncontrolled dispersal of altered genes from GMOs into wild, natural organisms through interbreeding",
+          "C. Fertilizer runoff from organic farms",
+          "D. Radiation-induced mutations in laboratory mice"
+        ],
+        ans: "Correct Answer: B. Uncontrolled dispersal of altered genes from GMOs into wild, natural organisms through interbreeding",
+        rat: "GM crops can cross-pollinate with wild relatives, spreading engineered genes into natural plant populations.",
+        hint: "Altered genes escaping into wild relatives."
+      },
+      {
+        topic: "Biotechnology & GMOs",
+        q: "27. In the 'ABCDE' summary of GMO disadvantages, what do A, B, C, D, and E stand for?",
+        choices: [
+          "A. Allergic mutations, Balance of microorganisms, Change in nutritional values, Development of gene mutations, Existence of antibiotic-resistant bacteria",
+          "B. Animal cloning, Bioremediation, Cell culture, DNA splicing, Enzyme synthesis",
+          "C. Agriculture, Biodiversity, Climate, Deforestation, Extinction",
+          "D. Antibodies, Blood cells, CD4 count, Drug resistance, Viral load"
+        ],
+        ans: "Correct Answer: A. Allergic mutations, Balance of microorganisms, Change in nutritional values, Development of gene mutations, Existence of antibiotic-resistant bacteria",
+        rat: "ABCDE summarizes the five key biological/health concerns associated with GMOs.",
+        hint: "Starts with Allergic mutations and ends with Existence of bacteria with antibiotic resistance."
+      },
+
+      // HIV/AIDS & ART NCLEX
+      {
+        topic: "HIV/AIDS & ART NCLEX",
+        q: "28. Which specific white blood cells does HIV target, enter, and destroy, leading to progressive immunodeficiency?",
+        choices: ["A. Red blood cells (erythrocytes)", "B. CD4+ T-helper lymphocytes", "C. Platelets (thrombocytes)", "D. Neutrophils"],
+        ans: "Correct Answer: B. CD4+ T-helper lymphocytes",
+        rat: "HIV binds to CD4 receptors on T-helper white blood cells, hijacks them to replicate, and kills them, crippling cell-mediated immunity.",
+        hint: "Measured alongside viral load to monitor immune strength."
+      },
+      {
+        topic: "HIV/AIDS & ART NCLEX",
+        q: "29. Which bodily fluids transmit HIV from person to person?",
+        choices: [
+          "A. Sweat, tears, saliva, and urine",
+          "B. Blood, semen, vaginal fluid, and breast milk",
+          "C. Vomit, saliva, and sweat without blood",
+          "D. Respiratory droplets from coughing"
+        ],
+        ans: "Correct Answer: B. Blood, semen, vaginal fluid, and breast milk",
+        rat: "HIV is transmitted only through blood, semen, vaginal fluid, and breast milk—never through casual contact, saliva, tears, sweat, or urine unless visible blood is present.",
+        hint: "Four specific body fluids involved in bloodborne, sexual, or vertical transmission."
+      },
+      {
+        topic: "HIV/AIDS & ART NCLEX",
+        q: "30. Which nursing statement best reflects accurate HIV transmission counseling?",
+        choices: [
+          "A. 'You can identify someone with HIV by their pale appearance.'",
+          "B. 'It is not who you are; it is what you do that puts you at risk.'",
+          "C. 'Once viral load is low, condoms are never needed even with untreated partners.'",
+          "D. 'Hugging or shaking hands with an HIV-positive person carries a low risk of transmission.'"
+        ],
+        ans: "Correct Answer: B. 'It is not who you are; it is what you do that puts you at risk.'",
+        rat: "Anyone can contract HIV regardless of background; high-risk behaviors (unprotected sex, needle sharing) drive transmission, while casual touch carries zero risk.",
+        hint: "Focuses on behaviors rather than identity or casual contact."
+      },
+      {
+        topic: "HIV/AIDS & ART NCLEX",
+        q: "31. What is the correct chronological order of the first four steps of the HIV life cycle?",
+        choices: [
+          "A. Integration → Fusion → Attachment → Reverse Transcription",
+          "B. Attachment → Fusion → Reverse Transcription → Integration",
+          "C. Reverse Transcription → Attachment → Integration → Fusion",
+          "D. Fusion → Attachment → Integration → Reverse Transcription"
+        ],
+        ans: "Correct Answer: B. Attachment → Fusion → Reverse Transcription → Integration",
+        rat: "HIV attaches to CD4/co-receptors (1), fuses with the membrane (2), converts RNA to DNA via reverse transcriptase (3), and integrates DNA into the host genome (4).",
+        hint: "Bind first, enter second, convert RNA to DNA third, insert into host DNA fourth."
+      },
+      {
+        topic: "HIV/AIDS & ART NCLEX",
+        q: "32. What happens during Steps 5 through 8 of the HIV life cycle?",
+        choices: [
+          "A. Replication → Assembly → Budding → Maturation",
+          "B. Budding → Maturation → Replication → Assembly",
+          "C. Maturation → Budding → Assembly → Replication",
+          "D. Assembly → Replication → Maturation → Budding"
+        ],
+        ans: "Correct Answer: A. Replication → Assembly → Budding → Maturation",
+        rat: "After integration, the host cell replicates viral proteins/RNA (5), assembles immature virions (6), buds out of the cell (7), and uses protease for maturation (8).",
+        hint: "Make parts → put together → exit cell → mature into infectious virus."
+      },
+      {
+        topic: "HIV/AIDS & ART NCLEX",
+        q: "33. Which antiretroviral drug class blocks Step 1 of the HIV life cycle by preventing HIV from binding to host co-receptors?",
+        choices: ["A. Protease Inhibitors (PIs)", "B. CCR5 Antagonists / Entry Inhibitors", "C. Integrase Inhibitors (INSTIs)", "D. NRTIs"],
+        ans: "Correct Answer: B. CCR5 Antagonists / Entry Inhibitors",
+        rat: "Entry/attachment inhibitors and CCR5 antagonists block viral gp120 from binding to CD4 and CCR5 co-receptors on the host cell surface.",
+        hint: "Stops the virus at the very first door (attachment/entry)."
+      },
+      {
+        topic: "HIV/AIDS & ART NCLEX",
+        q: "34. Which enzyme is blocked by NRTIs and NNRTIs during Step 3 of the HIV life cycle?",
+        choices: ["A. Integrase", "B. Protease", "C. Reverse transcriptase", "D. Cas9 nuclease"],
+        ans: "Correct Answer: C. Reverse transcriptase",
+        rat: "Nucleoside and Non-Nucleoside Reverse Transcriptase Inhibitors (NRTIs/NNRTIs) prevent reverse transcriptase from converting viral RNA into viral DNA.",
+        hint: "The name is inside the acronym NRTI / NNRTI."
+      },
+      {
+        topic: "HIV/AIDS & ART NCLEX",
+        q: "35. How do Integrase Strand Transfer Inhibitors (INSTIs, e.g., dolutegravir) prevent HIV replication?",
+        choices: [
+          "A. By stopping viral DNA from inserting into the host cell's nuclear DNA (Step 4)",
+          "B. By blocking viral budding from the cell membrane (Step 7)",
+          "C. By destroying viral RNA before fusion (Step 2)",
+          "D. By stimulating red blood cell production"
+        ],
+        ans: "Correct Answer: A. By stopping viral DNA from inserting into the host cell's nuclear DNA (Step 4)",
+        rat: "INSTIs inhibit the HIV integrase enzyme, preventing viral DNA from integrating into the host chromosome.",
+        hint: "Targets Step 4: Integration."
+      },
+      {
+        topic: "HIV/AIDS & ART NCLEX",
+        q: "36. What is the mechanism of action of Protease Inhibitors (PIs) in Step 8 of the HIV life cycle?",
+        choices: [
+          "A. They block CD4 receptor binding",
+          "B. They prevent protease from cleaving long viral polyproteins into functional proteins needed for mature, infectious virions",
+          "C. They convert viral DNA back into RNA",
+          "D. They increase viral load to stimulate antibodies"
+        ],
+        ans: "Correct Answer: B. They prevent protease from cleaving long viral polyproteins into functional proteins needed for mature, infectious virions",
+        rat: "Without protease cleavage during maturation (Step 8), newly budded HIV particles remain immature and non-infectious.",
+        hint: "Targets the final maturation step."
+      },
+      {
+        topic: "HIV/AIDS & ART NCLEX",
+        q: "37. What symptoms typically appear during Stage 1 (Acute HIV Infection), 2 to 4 weeks after exposure?",
+        choices: [
+          "A. Kaposi sarcoma and wasting syndrome",
+          "B. Flu-like symptoms (fever, sore throat, swollen lymph glands, skin rash) that resolve without treatment",
+          "C. Severe lipodystrophy and shingles",
+          "D. Complete absence of virus in the bloodstream"
+        ],
+        ans: "Correct Answer: B. Flu-like symptoms (fever, sore throat, swollen lymph glands, skin rash) that resolve without treatment",
+        rat: "Acute HIV causes transient flu-like symptoms while the virus replicates rapidly; even after symptoms fade, HIV continues destroying CD4 cells.",
+        hint: "Mimics mononucleosis or the flu shortly after infection."
+      },
+      {
+        topic: "HIV/AIDS & ART NCLEX",
+        q: "38. Which CD4+ T-cell count threshold defines progression from HIV to Stage 4 (AIDS)?",
+        choices: ["A. Below 1,000 cells/µL", "B. Below 500 cells/µL", "C. Below 200 cells/µL (or <14%)", "D. Above 350 cells/µL"],
+        ans: "Correct Answer: C. Below 200 cells/µL (or <14%)",
+        rat: "AIDS is diagnosed when CD4 cells drop below 200 cells/µL OR when an AIDS-defining opportunistic infection/malignancy develops.",
+        hint: "The critical cutoff is 200."
+      },
+      {
+        topic: "HIV/AIDS & ART NCLEX",
+        q: "39. Which clinical manifestations are characteristic of infants born with HIV or infected via breast milk?",
+        choices: [
+          "A. Rapid weight gain and early walking",
+          "B. Failure to thrive (slow growth/weight gain), developmental delays, frequent diarrhea, oral thrush, enlarged liver/spleen, and pneumonia",
+          "C. Hypertension and hyperthyroidism",
+          "D. Only a mild skin rash with no infections"
+        ],
+        ans: "Correct Answer: B. Failure to thrive (slow growth/weight gain), developmental delays, frequent diarrhea, oral thrush, enlarged liver/spleen, and pneumonia",
+        rat: "Pediatric HIV commonly presents with growth/developmental delays, recurrent thrush, chronic diarrhea, hepatosplenomegaly, and severe lung infections.",
+        hint: "Delayed milestones + recurrent yeast/lung/GI infections."
+      },
+      {
+        topic: "HIV/AIDS & ART NCLEX",
+        q: "40. Why is a PCR test—rather than an HIV antibody test—used to diagnose HIV in infants under 18 months old?",
+        choices: [
+          "A. Infants retain maternal HIV antibodies for 6 to 18 months, so PCR is needed to directly detect viral genetic material",
+          "B. Antibody tests are toxic to newborns",
+          "C. Infants have no blood volume for antibody testing",
+          "D. PCR tests only check liver enzymes"
+        ],
+        ans: "Correct Answer: A. Infants retain maternal HIV antibodies for 6 to 18 months, so PCR is needed to directly detect viral genetic material",
+        rat: "All infants born to HIV-positive mothers carry maternal antibodies for up to 18 months; PCR detects actual HIV virus in the baby's blood by 1–4 months of age.",
+        hint: "Maternal antibodies cross the placenta and cause false-positive antibody tests in babies."
+      },
+      {
+        topic: "HIV/AIDS & ART NCLEX",
+        q: "41. In the 'running water and sink drain' analogy for HIV monitoring, what do the running water and the drain represent?",
+        choices: [
+          "A. Water = CD4 cells; Drain = HIV viral load",
+          "B. Water = HIV making copies of itself (viral load); Drain = immune system (CD4 cells) clearing the virus",
+          "C. Water = ART pills; Drain = kidney filtration",
+          "D. Water = red blood cells; Drain = platelets"
+        ],
+        ans: "Correct Answer: B. Water = HIV making copies of itself (viral load); Drain = immune system (CD4 cells) clearing the virus",
+        rat: "When the drain (CD4 immune system) is clogged/weak, water (HIV viral load) rises in the sink; effective ART turns down the faucet (lowers viral load) so CD4 cells recover.",
+        hint: "Rising water in a clogged sink = high viral load."
+      },
+      {
+        topic: "HIV/AIDS & ART NCLEX",
+        q: "42. What is the single most important NCLEX nursing priority when teaching a client starting Antiretroviral Therapy (ART)?",
+        choices: [
+          "A. Take ART doses only when feeling sick",
+          "B. Strict daily adherence on schedule without missing doses, because missed doses allow HIV to mutate and develop drug resistance",
+          "C. Stop taking ART once the viral load becomes undetectable",
+          "D. Double the next dose if a pill tastes bitter"
+        ],
+        ans: "Correct Answer: B. Strict daily adherence on schedule without missing doses, because missed doses allow HIV to mutate and develop drug resistance",
+        rat: "Inconsistent dosing lets HIV replicate and mutate rapidly into drug-resistant strains, causing treatment failure.",
+        hint: "Missing doses = viral mutation and ART drug resistance."
+      },
+      {
+        topic: "HIV/AIDS & ART NCLEX",
+        q: "43. Which opportunistic infections are commonly prevented using prophylactic medications when a patient's CD4 count falls dangerously low?",
+        choices: [
+          "A. Appendicitis and gallstones",
+          "B. Pneumocystis pneumonia (PCP), Mycobacterium avium complex (MAC), herpes, and thrush",
+          "C. Type 1 diabetes and asthma",
+          "D. Influenza and tetanus"
+        ],
+        ans: "Correct Answer: B. Pneumocystis pneumonia (PCP), Mycobacterium avium complex (MAC), herpes, and thrush",
+        rat: "Low CD4 counts guide when to initiate preventive (prophylactic) antimicrobials against PCP, MAC, HSV, and candidiasis (thrush).",
+        hint: "Opportunistic fungal, protozoal, viral, and mycobacterial infections."
+      },
+      {
+        topic: "HIV/AIDS & ART NCLEX",
+        q: "44. A child with HIV develops fatigue, pallor, and low red blood cells while taking antiretroviral therapy. What is the likely cause and management?",
+        choices: [
+          "A. Anemia caused by low iron or ART side effects; treated with iron supplements or switching the offending ART medication",
+          "B. Lipodystrophy; treated with high-dose steroids",
+          "C. Shingles; treated with isolation only",
+          "D. Normal side effect requiring no follow-up"
+        ],
+        ans: "Correct Answer: A. Anemia caused by low iron or ART side effects; treated with iron supplements or switching the offending ART medication",
+        rat: "Anemia is common in pediatric HIV due to iron deficiency or bone-marrow-suppressing antiretrovirals (like zidovudine), requiring iron therapy or regimen adjustment.",
+        hint: "Low RBCs carrying oxygen = anemia."
+      },
+      {
+        topic: "HIV/AIDS & ART NCLEX",
+        q: "45. Which condition causes painful localized skin blisters in a child with HIV who previously had chickenpox, and poses a transmission risk to non-immune contacts?",
+        choices: ["A. Lipodystrophy", "B. Shingles (Herpes Zoster)", "C. Lymphocytic interstitial pneumonitis (LIP)", "D. Anemia"],
+        ans: "Correct Answer: B. Shingles (Herpes Zoster)",
+        rat: "Shingles is caused by reactivation of the varicella-zoster (chickenpox) virus; fluid inside the blisters can transmit chickenpox to non-immune individuals.",
+        hint: "Reactivation of the chickenpox virus along a nerve distribution."
+      },
+      {
+        topic: "HIV/AIDS & ART NCLEX",
+        q: "46. How is Lymphocytic Interstitial Pneumonitis (LIP) in children with HIV characterized and treated?",
+        choices: [
+          "A. A serious lung disease causing wheezing, cough, and shortness of breath; diagnosed via chest X-ray and treated with steroids plus ART",
+          "B. A fungal mouth infection treated with topical antifungal drops only",
+          "C. Fat accumulation at the base of the neck treated with diet alone",
+          "D. Kidney failure treated with dialysis"
+        ],
+        ans: "Correct Answer: A. A serious lung disease causing wheezing, cough, and shortness of breath; diagnosed via chest X-ray and treated with steroids plus ART",
+        rat: "LIP causes chronic respiratory symptoms in pediatric HIV and responds well to corticosteroids alongside antiretroviral therapy.",
+        hint: "'Pneumonitis' = lung inflammation."
+      },
+      {
+        topic: "HIV/AIDS & ART NCLEX",
+        q: "47. What clinical signs characterize HIV-associated lipodystrophy (fat redistribution)?",
+        choices: [
+          "A. Generalized swelling of the hands and feet",
+          "B. Loss of subcutaneous fat in the face, arms, and legs combined with fat gain in the abdomen or base of the neck",
+          "C. Rapid loss of bone density in the spine",
+          "D. Yellowing of the sclera and skin"
+        ],
+        ans: "Correct Answer: B. Loss of subcutaneous fat in the face, arms, and legs combined with fat gain in the abdomen or base of the neck",
+        rat: "Lipodystrophy redistributes body fat away from the limbs and face toward the trunk and back of the neck ('buffalo hump').",
+        hint: "Thin arms/face + central abdominal/neck fat accumulation."
+      },
+
+      // CLIMATE CHANGE 2022 & FOOD SYSTEMS
+      {
+        topic: "Climate Change & Food",
+        q: "48. At least what percentage of global greenhouse gas (GHG) emissions is driven by animal agriculture?",
+        choices: ["A. 2.5%", "B. 14.5%", "C. 34%", "D. 50%"],
+        ans: "Correct Answer: B. 14.5%",
+        rat: "Animal agriculture contributes at least 14.5% of all global GHG emissions—more than all of the world's transportation combined.",
+        hint: "Roughly one-seventh of global greenhouse gas emissions."
+      },
+      {
+        topic: "Climate Change & Food",
+        q: "49. How much greenhouse gas is released to produce 1 kilogram of beef, and what is the footprint of a single 1/4-lb hamburger?",
+        choices: [
+          "A. 1 kg GHGs per kg beef; 0.5 lb CO2e per burger",
+          "B. 36 kg GHGs per kg beef; 6.75 lb CO2e, 595 sq ft habitat loss, and 425 gal water per 1/4-lb burger",
+          "C. 10 kg GHGs per kg beef; 2.0 lb CO2e per burger",
+          "D. 100 kg GHGs per kg beef; 20 lb CO2e per burger"
+        ],
+        ans: "Correct Answer: B. 36 kg GHGs per kg beef; 6.75 lb CO2e, 595 sq ft habitat loss, and 425 gal water per 1/4-lb burger",
+        rat: "Producing 1 kg of beef emits 36 kg of GHGs (and takes ~20,000 liters of water and 16 kg of feed); a single 1/4-lb burger costs 6.75 lb CO2e and 425 gallons of water.",
+        hint: "36 kg GHGs per kg of beef; 6.75 lb CO2e per quarter-pounder."
+      },
+      {
+        topic: "Climate Change & Food",
+        q: "50. Why are cows especially potent contributors to short-term global warming compared to CO2 alone?",
+        choices: [
+          "A. Cows exhale pure chlorofluorocarbons",
+          "B. Ruminant digestion generates methane (86x more potent than CO2 over 20 years), and cow manure causes two-thirds of global nitrous oxide pollution",
+          "C. Cattle pastures reflect 100% of solar radiation",
+          "D. Cows consume oxygen faster than forests produce it"
+        ],
+        ans: "Correct Answer: B. Ruminant digestion generates methane (86x more potent than CO2 over 20 years), and cow manure causes two-thirds of global nitrous oxide pollution",
+        rat: "Methane (CH4) has 86x the warming potential of CO2 over 20 years, and nitrous oxide (N2O) from manure has a 100-year GWP of 298.",
+        hint: "Focus on methane from digestion and nitrous oxide from manure."
+      },
+      {
+        topic: "Climate Change & Food",
+        q: "51. How does the water footprint of grass-fed beef compare to industrially produced beef?",
+        choices: [
+          "A. Grass-fed beef uses 90% less water",
+          "B. Grass-fed beef uses about the same amount of water",
+          "C. Grass-fed beef has a total water footprint about 5 times greater than industrial beef",
+          "D. Grass-fed beef requires zero irrigation water"
+        ],
+        ans: "Correct Answer: C. Grass-fed beef has a total water footprint about 5 times greater than industrial beef",
+        rat: "Because grass-fed cattle grow more slowly and graze longer before slaughter, their total water footprint is roughly 5x higher than feedlot beef.",
+        hint: "Grass-fed is actually 5 times more water-intensive."
+      },
+      {
+        topic: "Climate Change & Food",
+        q: "52. Which major South American ecosystems are heavily deforested for cattle ranching and soy/palm oil feed plantations, driving 15% of global GHG emissions?",
+        choices: [
+          "A. The Sahara and Kalahari",
+          "B. The Amazon rainforest and the Cerrado savanna",
+          "C. The Siberian taiga and Gobi desert",
+          "D. The Great Barrier Reef and Outback"
+        ],
+        ans: "Correct Answer: B. The Amazon rainforest and the Cerrado savanna",
+        rat: "Clearing the Amazon and Cerrado for cattle pastures and soy feed releases stored carbon (15% of global GHG emissions) and reduces future carbon absorption.",
+        hint: "Two famous biodiverse regions in Brazil/South America."
+      },
+      {
+        topic: "Climate Change & Food",
+        q: "53. How much water can a person save in one year simply by skipping one hamburger per week?",
+        choices: ["A. 500 gallons", "B. 2,200 gallons", "C. 22,100 gallons (equivalent to flushing a toilet ~38 times a day for a year)", "D. 100,000 gallons"],
+        ans: "Correct Answer: C. 22,100 gallons (equivalent to flushing a toilet ~38 times a day for a year)",
+        rat: "Skipping just 52 burgers a year (1/week × 425 gal/burger) saves 22,100 gallons of water.",
+        hint: "52 weeks × 425 gallons = 22,100 gallons."
+      },
+      {
+        topic: "Climate Change & Food",
+        q: "54. According to the IPCC AR6 WGII report (Climate Change 2022), approximately how many people live in contexts highly vulnerable to climate change?",
+        choices: ["A. 500 million", "B. 1.2 billion", "C. 3.3 to 3.6 billion", "D. 7.8 billion"],
+        ans: "Correct Answer: C. 3.3 to 3.6 billion",
+        rat: "Roughly 3.3 to 3.6 billion people—nearly half the global population—live in areas and socioeconomic contexts highly vulnerable to climate impacts.",
+        hint: "Between 3.3 and 3.6 billion people."
+      },
+      {
+        topic: "Climate Change & Food",
+        q: "55. What does the IPCC 2022 report state about reaching 1.5°C of global warming in the near term (2021–2040)?",
+        choices: [
+          "A. It will have no noticeable impact on weather extremes",
+          "B. It causes unavoidable increases in multiple climate hazards and risks, though limiting warming close to 1.5°C substantially reduces—without eliminating—losses and damages",
+          "C. It will permanently reverse sea-level rise",
+          "D. Only polar bears will be affected"
+        ],
+        ans: "Correct Answer: B. It causes unavoidable increases in multiple climate hazards and risks, though limiting warming close to 1.5°C substantially reduces—without eliminating—losses and damages",
+        rat: "Near-term warming to 1.5°C intensifies heatwaves, floods, droughts, and food/water risks, making both mitigation and adaptation urgent.",
+        hint: "Reduces losses substantially compared to higher warming, but cannot eliminate them."
+      },
+      {
+        topic: "Climate Change & Food",
+        q: "56. What happens if global warming temporarily exceeds ('overshoots') 1.5°C before coming back down?",
+        choices: [
+          "A. Ecosystems immediately bounce back with zero permanent damage",
+          "B. Overshoot causes additional severe, irreversible impacts on ecosystems (e.g., coral reefs, polar/mountain regions) and triggers carbon feedback loops",
+          "C. Overshoot lowers global ocean temperatures",
+          "D. Overshoot eliminates the need for climate adaptation"
+        ],
+        ans: "Correct Answer: B. Overshoot causes additional severe, irreversible impacts on ecosystems (e.g., coral reefs, polar/mountain regions) and triggers carbon feedback loops",
+        rat: "Even temporary temperature overshoot causes irreversible biodiversity loss, glacier/permafrost melt, and additional greenhouse gas release.",
+        hint: "Temporary overshoot still causes permanent, irreversible damage."
+      },
+      {
+        topic: "Climate Change & Food",
+        q: "57. What are 'compound and cascading climate risks' highlighted in the IPCC 2022 report?",
+        choices: [
+          "A. Single weather events that happen once every thousand years",
+          "B. Multiple climate hazards occurring simultaneously and interacting across sectors (e.g., heat + drought causing crop failure, water shortages, and food price spikes)",
+          "C. Risks limited strictly to coastal tourism",
+          "D. Risks caused solely by volcanic eruptions"
+        ],
+        ans: "Correct Answer: B. Multiple climate hazards occurring simultaneously and interacting across sectors (e.g., heat + drought causing crop failure, water shortages, and food price spikes)",
+        rat: "Concurrent climate hazards compound one another and cascade across interconnected food, water, health, and economic systems.",
+        hint: "Multiple hazards hitting at once and triggering chain reactions."
+      },
+      {
+        topic: "Climate Change & Food",
+        q: "58. What is 'maladaptation' in climate change response?",
+        choices: [
+          "A. Transitioning to solar and wind power",
+          "B. Poorly designed adaptation actions that unintentionally increase vulnerability, shift risks to other groups, or lock in emissions (e.g., rigid seawalls destroying wetlands)",
+          "C. Protecting 30–50% of Earth's ecosystems",
+          "D. Reducing household food waste"
+        ],
+        ans: "Correct Answer: B. Poorly designed adaptation actions that unintentionally increase vulnerability, shift risks to other groups, or lock in emissions (e.g., rigid seawalls destroying wetlands)",
+        rat: "Maladaptation occurs when short-sighted interventions (like hard seawalls or planting thirsty trees in drylands) worsen long-term climate vulnerability.",
+        hint: "'Mal-' = bad/harmful adaptation that backfires."
+      },
+      {
+        topic: "Climate Change & Food",
+        q: "59. What is the difference between 'soft limits' and 'hard limits' to climate adaptation?",
+        choices: [
+          "A. Soft limits occur when adaptive options exist but aren't currently available due to financial/social barriers; hard limits occur when no adaptive actions can prevent intolerable risks",
+          "B. Soft limits apply to oceans and hard limits apply to rocks",
+          "C. Soft limits are permanent while hard limits are temporary",
+          "D. There is no difference between them"
+        ],
+        ans: "Correct Answer: A. Soft limits occur when adaptive options exist but aren't currently available due to financial/social barriers; hard limits occur when no adaptive actions can prevent intolerable risks",
+        rat: "Some warm-water coral reefs, coastal wetlands, and polar/mountain ecosystems are already reaching hard physical limits to adaptation.",
+        hint: "Soft = socioeconomic/funding barriers; Hard = physical/ecological impossibility."
+      },
+      {
+        topic: "Climate Change & Food",
+        q: "60. According to IPCC 2022, what is 'Climate Resilient Development (CRD)' and how much of Earth's ecosystems must be conserved to maintain planetary resilience?",
+        choices: [
+          "A. Focusing only on fossil fuel extraction; conserving 5% of land",
+          "B. Integrating mitigation and adaptation with equity, justice, and biodiversity conservation—protecting 30% to 50% of Earth's land, freshwater, and ocean areas",
+          "C. Relying exclusively on seawalls; conserving 10% of oceans",
+          "D. Delaying emission cuts until 2080"
+        ],
+        ans: "Correct Answer: B. Integrating mitigation and adaptation with equity, justice, and biodiversity conservation—protecting 30% to 50% of Earth's land, freshwater, and ocean areas",
+        rat: "Climate Resilient Development combines emission cuts (mitigation) with adaptation, inclusive governance, and conserving 30–50% of Earth's ecosystems.",
+        hint: "Mitigation + Adaptation + Equity + protecting 30% to 50% of Earth's ecosystems."
+      }
+    ];
+
+    let filteredDeck = [...deckData];
+    let currentIndex = 0;
+    let masteredSet = new Set();
+
+    const flashcardEl = document.getElementById("flashcard");
+    const cardTopicEl = document.getElementById("cardTopic");
+    const questionTextEl = document.getElementById("questionText");
+    const choicesListEl = document.getElementById("choicesList");
+    const hintBoxEl = document.getElementById("hintBox");
+    const answerHeaderEl = document.getElementById("answerHeader");
+    const rationaleTextEl = document.getElementById("rationaleText");
+    const counterTextEl = document.getElementById("counterText");
+    const masteredTextEl = document.getElementById("masteredText");
+    const progressFillEl = document.getElementById("progressFill");
+    const masteredBtn = document.getElementById("masteredBtn");
+    const hintBtn = document.getElementById("hintBtn");
+
+    function renderCard() {
+      const item = filteredDeck[currentIndex];
+      flashcardEl.classList.remove("is-flipped");
+      hintBoxEl.classList.remove("visible");
+      hintBtn.textContent = "Show Hint";
+
+      cardTopicEl.textContent = item.topic;
+      questionTextEl.textContent = item.q;
+      choicesListEl.innerHTML = item.choices.map(c => `<li>${c}</li>`).join("");
+      hintBoxEl.textContent = "Hint: " + item.hint;
+
+      answerHeaderEl.textContent = item.ans;
+      rationaleTextEl.textContent = item.rat;
+
+      counterTextEl.textContent = `Card ${currentIndex + 1} of ${filteredDeck.length}`;
+      masteredTextEl.textContent = `Mastered: ${masteredSet.size} / ${deckData.length}`;
+      progressFillEl.style.width = `${((currentIndex + 1) / filteredDeck.length) * 100}%`;
+
+      if (masteredSet.has(item.q)) {
+        masteredBtn.classList.add("active");
+        masteredBtn.textContent = "✓ Mastered";
+      } else {
+        masteredBtn.classList.remove("active");
+        masteredBtn.textContent = "Mark Mastered";
+      }
+    }
+
+    flashcardEl.addEventListener("click", () => flashcardEl.classList.toggle("is-flipped"));
+    document.getElementById("flipBtn").addEventListener("click", () => flashcardEl.classList.toggle("is-flipped"));
+
+    document.getElementById("prevBtn").addEventListener("click", () => {
+      currentIndex = (currentIndex - 1 + filteredDeck.length) % filteredDeck.length;
+      renderCard();
+    });
+
+    document.getElementById("nextBtn").addEventListener("click", () => {
+      currentIndex = (currentIndex + 1) % filteredDeck.length;
+      renderCard();
+    });
+
+    document.getElementById("shuffleBtn").addEventListener("click", () => {
+      for (let i = filteredDeck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [filteredDeck[i], filteredDeck[j]] = [filteredDeck[j], filteredDeck[i]];
+      }
+      currentIndex = 0;
+      renderCard();
+    });
+
+    hintBtn.addEventListener("click", () => {
+      const isVisible = hintBoxEl.classList.toggle("visible");
+      hintBtn.textContent = isVisible ? "Hide Hint" : "Show Hint";
+    });
+
+    masteredBtn.addEventListener("click", () => {
+      const key = filteredDeck[currentIndex].q;
+      if (masteredSet.has(key)) masteredSet.delete(key);
+      else masteredSet.add(key);
+      renderCard();
+    });
+
+    document.getElementById("topicFilter").addEventListener("change", (e) => {
+      const val = e.target.value;
+      filteredDeck = val === "ALL" ? [...deckData] : deckData.filter(d => d.topic === val);
+      currentIndex = 0;
+      renderCard();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.code === "Space") { e.preventDefault(); flashcardEl.classList.toggle("is-flipped"); }
+      if (e.code === "ArrowRight") { currentIndex = (currentIndex + 1) % filteredDeck.length; renderCard(); }
+      if (e.code === "ArrowLeft") { currentIndex = (currentIndex - 1 + filteredDeck.length) % filteredDeck.length; renderCard(); }
+    });
+
+    renderCard();
+  </script>
+</body>
+</html>
